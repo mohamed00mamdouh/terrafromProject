@@ -17,7 +17,7 @@ resource "aws_instance" "proxy" {
   connection {
     type        = "ssh"
     user        = "ec2-user"
-    private_key = file("~/.ssh/id_rsa")
+    private_key = file("~/.ssh/proj-key.pem")
     host        = self.public_ip
   }
 
@@ -47,7 +47,7 @@ resource "aws_instance" "backend" {
   connection {
     type        = "ssh"
     user        = "ec2-user"
-    private_key = file("~/.ssh/id_rsa")
+    private_key = file("~/.ssh/proj-key.pem")
     host        = self.private_ip
   }
 

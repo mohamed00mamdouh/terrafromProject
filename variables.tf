@@ -14,7 +14,7 @@ variable "private_subnets" {
   default = ["10.0.1.0/24", "10.0.3.0/24"]
 }
 
-variable "region" {
+variable "region1" {
   default = "us-east-1"
 }
 
