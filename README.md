@@ -1,138 +1,176 @@
-#  Terraform Project
+# Secure Web App with Public Proxy + Private Backend on AWS using Terraform
 
-
-## 📋 Overview
-
-This repository leverages [Terraform](https://www.terraform.io/) to define, provision, and manage infrastructure in a modular, reusable, and scalable way.  
-It’s structured for clean separation of modules, environments, and configurations — making it easy to extend or adapt for any cloud platform (AWS, Azure, GCP, etc.).
+## 📘 Project Overview
+This Terraform project provisions a **secure and scalable web application** architecture on **AWS**.  
+The setup includes a **public Nginx reverse proxy layer** and **private backend web servers**, all managed via modular Terraform configuration.
 
 ---
 
-## 🗂 Project Structure
+## 🏗️ Infrastructure Architecture
 
-```
-/
-├── backend.tf            # Terraform backend configuration
-├── main.tf               # Root Terraform configuration
-├── provider.tf           # Provider definitions
-├── variables.tf          # Root-level input variables
-├── outputs.tf            # Root-level outputs
-├── modules/              # Reusable Terraform modules
-│   ├── vpc/              # Example: VPC creation module
-│   ├── ec2/              # Example: EC2 or compute module
-│   ├── security/         # Example: Security groups, firewalls, etc.
-│   └── ...               # Other modules as needed
-├── scripts/              # Helper scripts (optional)
-└── terraform.lock.hcl    # Provider dependency lock file
-```
+The setup includes:
+
+- **VPC (10.0.0.0/16)**
+- **2 Public Subnets** → Contain EC2 instances acting as Nginx reverse proxies.
+- **2 Private Subnets** → Contain EC2 instances hosting backend web applications (Flask/Node.js).
+- **Internet Gateway (IGW)** → Provides internet access for public subnets.
+- **NAT Gateway** → Allows private instances to access the internet securely.
+- **2 Load Balancers:**
+  - **Public ALB** → Routes internet traffic to proxy instances.
+  - **Internal ALB** → Routes proxy traffic to backend servers.
 
 ---
 
-## 🛠 Usage
+## ⚙️ Technical Implementation
 
-### 1️⃣ Clone the Repository
-```bash
-git clone https://github.com/mohamed00mamdouh/terrafromProject.git
-cd terrafromProject
+### 1. Workspace Management
+- Do **not** use the default workspace.
+- Create a new workspace:
+  ```bash
+  terraform workspace new dev
+  ```
+
+### 2. Remote State Management
+- The Terraform state is stored remotely using an **S3 bucket** for better collaboration and versioning.
+
+### 3. Terraform Modules
+Each component of the infrastructure is implemented as a **custom Terraform module** (not from the public registry).
+Each module contains:
+```
+main.tf
+variables.tf
+outputs.tf
 ```
 
-### 2️⃣ Initialize Terraform
-Downloads providers and configures the backend.
-```bash
-terraform init
-```
-
-### 3️⃣ Preview Infrastructure Changes
-Review the plan before applying.
-```bash
-terraform plan -out=tfplan
-```
-
-### 4️⃣ Apply the Configuration
-Deploy the infrastructure.
-```bash
-terraform apply tfplan
-```
-
-### 5️⃣ Destroy the Infrastructure
-Tear down resources when no longer needed.
-```bash
-terraform destroy
-```
+Modules:
+- `vpc` → Creates VPC, subnets, route tables, gateways.
+- `ec2` → Launches EC2 instances (proxies and backends).
+- `alb` → Configures load balancers.
+- `sg` → Sets up security groups.
 
 ---
 
-## ⚙️ Configuration
+### 4. Provisioners
 
-All configurable values are defined in `variables.tf`.  
-Override them via a `.tfvars` file or CLI flags.
-
-Example (`terraform.tfvars`):
+#### a. Remote-exec
+Used to install required software (e.g., Apache, Nginx) on EC2 instances after deployment:
 ```hcl
-region      = "us-east-1"
-environment = "dev"
-vpc_cidr    = "10.0.0.0/16"
+provisioner "remote-exec" {
+  inline = [
+    "sudo apt update -y",
+    "sudo apt install nginx -y"
+  ]
+}
+```
+
+#### b. Local-exec
+After provisioning, it writes all instance IPs to a local file named **all-ips.txt**:
+```
+public-ip1 1.1.1.1
+public-ip2 2.2.2.2
+```
+Example:
+```hcl
+provisioner "local-exec" {
+  command = "echo 'public-ip1 ${aws_instance.proxy[0].public_ip}' >> all-ips.txt"
+}
+```
+
+#### c. File Provisioner
+Copies application files from your local machine to private EC2 instances:
+```hcl
+provisioner "file" {
+  source      = "./app/"
+  destination = "/home/ubuntu/app/"
+}
 ```
 
 ---
 
-## 🚪 Backend Configuration
-
-The `backend.tf` file defines the remote state backend (e.g., S3, Azure Storage, GCS).  
-Update it according to your organization’s backend setup.
-
-Example (AWS S3):
+### 5. Data Sources
+Used to dynamically fetch the latest AMI ID for EC2 instances:
 ```hcl
-terraform {
-  backend "s3" {
-    bucket         = "my-terraform-state"
-    key            = "infra/terraform.tfstate"
-    region         = "us-east-1"
-    dynamodb_table = "terraform-locks"
-    encrypt        = true
+data "aws_ami" "ubuntu" {
+  most_recent = true
+  owners      = ["099720109477"]
+  filter {
+    name   = "name"
+    values = ["ubuntu/images/hvm-ssd/ubuntu-focal-20.04-amd64-server-*"]
   }
 }
 ```
 
 ---
 
-## 📤 Outputs
+## 🧱 Project Structure
 
-After applying, Terraform will display useful outputs defined in `outputs.tf`, such as:
-- Resource IDs
-- IP addresses or DNS names
-- Module outputs
-
----
-
-## 💡 Best Practices
-
-- Keep state files **remote and locked**
-- Use **modules** for reusability and abstraction
-- Avoid hard-coded values — use variables or tfvars
-- Maintain separate environments (dev, stage, prod)
-- Review `terraform plan` output before applying changes
-- Use version control (Git) to track infrastructure changes
-
----
-
-## 🧪 Scripts
-
-The `scripts/` folder may contain helper scripts for automation tasks, such as:
-- Formatting (`terraform fmt`)
-- Validation (`terraform validate`)
-- Plan/apply automation
+```
+terraform-project/
+│
+├── main.tf
+├── variables.tf
+├── outputs.tf
+├── backend.tf
+├── modules/
+│   ├── vpc/
+│   ├── ec2/
+│   ├── alb/
+│   ├── sg/
+│
+└── app/
+    └── backend_files/
+```
 
 ---
 
-## 🧑‍💻 Contributing
+## 🚀 Deployment Steps
 
-Contributions are welcome!
+1. **Initialize Terraform**
+   ```bash
+   terraform init
+   ```
 
-1. Fork the repository  
-2. Create a feature branch  
-3. Commit and push your changes  
-4. Submit a Pull Request 🚀
+2. **Select/Create Workspace**
+   ```bash
+   terraform workspace new dev
+   ```
+
+3. **Validate Configuration**
+   ```bash
+   terraform validate
+   ```
+
+4. **Plan Deployment**
+   ```bash
+   terraform plan
+   ```
+
+5. **Apply Changes**
+   ```bash
+   terraform apply -auto-approve
+   ```
+
+6. **Output IPs**
+   Check the `all-ips.txt` file for generated IP addresses.
 
 ---
 
+## 🧩 Outputs
+- Public Proxy IPs
+- Backend Private IPs
+- Load Balancer DNS names
+
+---
+
+## 🔒 Security Notes
+- Only ALBs and proxy instances are publicly accessible.
+- Backend instances reside in private subnets.
+- Security groups are configured for minimal exposure and least privilege.
+
+---
+
+## 🧑‍💻 Author
+**Mohamed Mamdouh**  
+Terraform | AWS | DevOps Engineer
+
+---
