@@ -162,15 +162,5 @@ terraform-project/
 
 ---
 
-## 🔒 Security Notes
-- Only ALBs and proxy instances are publicly accessible.
-- Backend instances reside in private subnets.
-- Security groups are configured for minimal exposure and least privilege.
-
----
-
-## 🧑‍💻 Author
-**Mohamed Mamdouh**  
-Terraform | AWS | DevOps Engineer
 
 ---
