@@ -156,21 +156,8 @@ proxy_public_ips = ["3.120.55.10", "18.213.45.89"]
 
 When done:
 ```bash
-terraform destroy -auto-approve
+terraform destroy 
 ```
-
----
-
-## 📸 Screenshots
-
-### ✅ AWS Console - VPC View
-![VPC Screenshot](./images/vpc.png)
-
-### ✅ AWS Console - Load Balancers
-![ALB Screenshot](./images/alb.png)
-
-### ✅ AWS Console - EC2 Instances
-![EC2 Screenshot](./images/ec2.png)
 
 ---
 
