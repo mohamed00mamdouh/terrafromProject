@@ -1,18 +1,31 @@
-# Secure Web App on AWS — Terraform Project
-## Overview
+# ☁️ Secure Web App with Public Proxy + Private Backend on AWS using Terraform
 
-This Terraform project builds a secure web application architecture on AWS with the following components:
+This project builds a **secure AWS environment** using **Terraform** with:
+- **Public reverse proxies (Nginx)** in public subnets  
+- **Private backend servers** (Flask / Node.js app) in private subnets  
+- **ALBs**, **NAT Gateway**, and **secure networking**
+- **Remote Terraform backend** using S3 + DynamoDB for state management
 
-- VPC (10.0.0.0/16)
-- 2 Public subnets (NGINX reverse-proxy EC2 instances)
-- 2 Private subnets (backend EC2 instances running a web app — Flask/Node.js)
-- Internet Gateway
-- NAT Gateway (for private instances to reach the internet)
-- Public Application Load Balancer (ALB) routing traffic to proxy instances
-- Internal ALB routing traffic from proxies to backend instances
-- Remote state stored in an S3 bucket (with DynamoDB state locking)
+---
 
-## Project structure 
+## 🏗️ Architecture Overview
+
+![Architecture Diagram](./images/architecture.png)
+
+### Components
+| Layer | AWS Resource | Description |
+|-------|---------------|--------------|
+| Network | VPC, Subnets, Route Tables | 2 Public + 2 Private subnets |
+| Security | Security Groups, NACLs | Fine-grained ingress/egress rules |
+| Compute | EC2 (Nginx Reverse Proxy & Web Backend) | Public EC2s act as proxies; Private EC2s host app |
+| Load Balancers | ALB (Public + Internal) | Public → Proxy; Internal → Backend |
+| Gateways | NAT Gateway, IGW | Internet & outbound traffic handling |
+| State | S3 + DynamoDB | Remote Terraform backend with locking |
+
+---
+
+## 🧰 Folder Structure
+
 ```
 ├── modules
 │   ├── vpc
@@ -47,17 +60,139 @@ This Terraform project builds a secure web application architecture on AWS with 
 └── README.md
 ```
 
-Each module must include `main.tf`, `variables.tf`, and `outputs.tf` as required.
+---
 
-## Key technical notes (how this repo satisfies your requirements)
+## ⚙️ Setup Instructions
 
-1. **Workspace**: This project uses a dedicated workspace `dev` (you must create it — see Usage).
-2. **Remote state**: Example S3 backend + DynamoDB lock is included in `envs/dev/backend.tf`.
-3. **Custom modules**: The architecture is implemented via custom modules inside `modules/` — each module contains `main.tf`, `variables.tf`, `outputs.tf` only.
-4. **Provisioners**:
-   - `remote-exec` or `file` provisioner is used to install/configure Nginx (or Apache) on proxy EC2s.
-   - `file` provisioner copies the web app files from your local machine to the private backend EC2 instances.
-   - `local-exec` prints/captures IPs and writes them to `all-ips.txt` in the requested format.
-5. **AMI lookup**: Use the `aws_ami` data source to fetch the latest image (by owner + name/filters).
+### 1️⃣ Prerequisites
 
-... (content truncated for brevity)
+- AWS account with IAM user + Access Keys
+- Terraform v1.5+  
+- SSH key pair created and available locally (`~/.ssh/id_rsa`)
+- (Optional) AWS CLI installed for validation
+
+---
+
+### 2️⃣ Deploy the Remote Backend (S3 + DynamoDB)
+
+```bash
+cd backend-setup
+terraform init
+terraform apply -auto-approve
+```
+
+This creates:
+- **S3 Bucket:** `state-bucket`
+- **DynamoDB Table:** `terraform-lock`
+
+---
+
+### 3️⃣ Configure Backend in Main Infrastructure
+
+Edit `main-infra/backend.tf`:
+```hcl
+terraform {
+  backend "s3" {
+    bucket         = "state-bucket"
+    key            = "terraform/statefile"
+    region         = "us-east-1"
+    dynamodb_table = "terraform-lock"
+    encrypt        = true
+  }
+}
+```
+
+---
+
+### 4️⃣ Initialize Workspace
+
+```bash
+cd main-infra
+terraform init -reconfigure
+terraform workspace new dev
+terraform workspace select dev
+```
+
+---
+
+### 5️⃣ Deploy Infrastructure
+
+```bash
+terraform plan
+terraform apply -auto-approve
+```
+
+Terraform will:
+- Create VPC, subnets, routing, and security groups  
+- Launch EC2s (Proxy + Backend)  
+- Configure ALBs  
+- Setup NAT and Internet Gateways  
+- Use provisioners to install Nginx/Apache  
+
+---
+
+## 🧩 Provisioners Summary
+
+| Type | Description |
+|------|--------------|
+| `remote-exec` | Installs required packages (Apache, Nginx) |
+| `file` | Copies web app files from local to private EC2s |
+| `local-exec` | Writes instance IPs to `all-ips.txt` |
+| `data` sources | Dynamically fetches latest AMI IDs |
+
+Example output file:
+```
+public-ip1 3.120.55.10
+public-ip2 18.213.45.89
+private-ip1 10.0.1.22
+private-ip2 10.0.2.15
+```
+
+---
+
+## 🧠 Workspace Management
+
+You can manage multiple environments easily:
+```bash
+terraform workspace list
+terraform workspace select dev
+terraform workspace new prod
+```
+
+Each workspace keeps its own state.
+
+---
+
+## 🧾 Outputs
+
+After deployment, Terraform prints:
+```
+alb_public_dns = "http://myapp-alb-123456.elb.amazonaws.com"
+backend_private_ips = ["10.0.1.22", "10.0.2.15"]
+proxy_public_ips = ["3.120.55.10", "18.213.45.89"]
+```
+
+---
+
+## 🧹 Clean Up
+
+When done:
+```bash
+terraform destroy -auto-approve
+```
+
+---
+
+## 📸 Screenshots
+
+### ✅ AWS Console - VPC View
+![VPC Screenshot](./images/vpc.png)
+
+### ✅ AWS Console - Load Balancers
+![ALB Screenshot](./images/alb.png)
+
+### ✅ AWS Console - EC2 Instances
+![EC2 Screenshot](./images/ec2.png)
+
+---
+
