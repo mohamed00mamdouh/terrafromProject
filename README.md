@@ -76,9 +76,8 @@ This project builds a **secure AWS environment** using **Terraform** with:
 ### 2️⃣ Deploy the Remote Backend (S3 + DynamoDB)
 
 ```bash
-cd backend-setup
 terraform init
-terraform apply -auto-approve
+terraform apply 
 ```
 
 This creates:
@@ -94,7 +93,6 @@ Edit `main-infra/backend.tf`:
 terraform {
   backend "s3" {
     bucket         = "state-bucket"
-    key            = "terraform/statefile"
     region         = "us-east-1"
     dynamodb_table = "terraform-lock"
     encrypt        = true
@@ -107,7 +105,6 @@ terraform {
 ### 4️⃣ Initialize Workspace
 
 ```bash
-cd main-infra
 terraform init -reconfigure
 terraform workspace new dev
 terraform workspace select dev
@@ -119,7 +116,7 @@ terraform workspace select dev
 
 ```bash
 terraform plan
-terraform apply -auto-approve
+terraform apply 
 ```
 
 Terraform will:
@@ -133,13 +130,6 @@ Terraform will:
 
 ## 🧩 Provisioners Summary
 
-| Type | Description |
-|------|--------------|
-| `remote-exec` | Installs required packages (Apache, Nginx) |
-| `file` | Copies web app files from local to private EC2s |
-| `local-exec` | Writes instance IPs to `all-ips.txt` |
-| `data` sources | Dynamically fetches latest AMI IDs |
-
 Example output file:
 ```
 public-ip1 3.120.55.10
@@ -150,18 +140,6 @@ private-ip2 10.0.2.15
 
 ---
 
-## 🧠 Workspace Management
-
-You can manage multiple environments easily:
-```bash
-terraform workspace list
-terraform workspace select dev
-terraform workspace new prod
-```
-
-Each workspace keeps its own state.
-
----
 
 ## 🧾 Outputs
 
