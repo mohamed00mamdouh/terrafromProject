@@ -1,168 +1,63 @@
-# Secure Web App with Public Proxy + Private Backend on AWS using Terraform
+# Secure Web App on AWS — Terraform Project
+## Overview
 
-## 📘 Project Overview
-This Terraform project provisions a **secure and scalable web application** architecture on **AWS**.  
-The setup includes a **public Nginx reverse proxy layer** and **private backend web servers**, all managed via modular Terraform configuration.
+This Terraform project builds a secure web application architecture on AWS with the following components:
 
----
+- VPC (10.0.0.0/16)
+- 2 Public subnets (NGINX reverse-proxy EC2 instances)
+- 2 Private subnets (backend EC2 instances running a web app — Flask/Node.js)
+- Internet Gateway
+- NAT Gateway (for private instances to reach the internet)
+- Public Application Load Balancer (ALB) routing traffic to proxy instances
+- Internal ALB routing traffic from proxies to backend instances
+- Remote state stored in an S3 bucket (with DynamoDB state locking)
 
-## 🏗️ Infrastructure Architecture
-
-The setup includes:
-
-- **VPC (10.0.0.0/16)**
-- **2 Public Subnets** → Contain EC2 instances acting as Nginx reverse proxies.
-- **2 Private Subnets** → Contain EC2 instances hosting backend web applications (Flask/Node.js).
-- **Internet Gateway (IGW)** → Provides internet access for public subnets.
-- **NAT Gateway** → Allows private instances to access the internet securely.
-- **2 Load Balancers:**
-  - **Public ALB** → Routes internet traffic to proxy instances.
-  - **Internal ALB** → Routes proxy traffic to backend servers.
-
----
-
-## ⚙️ Technical Implementation
-
-### 1. Workspace Management
-- Do **not** use the default workspace.
-- Create a new workspace:
-  ```bash
-  terraform workspace new dev
-  ```
-
-### 2. Remote State Management
-- The Terraform state is stored remotely using an **S3 bucket** for better collaboration and versioning.
-
-### 3. Terraform Modules
-Each component of the infrastructure is implemented as a **custom Terraform module** (not from the public registry).
-Each module contains:
+## Project structure 
 ```
-main.tf
-variables.tf
-outputs.tf
-```
-
-Modules:
-- `vpc` → Creates VPC, subnets, route tables, gateways.
-- `ec2` → Launches EC2 instances (proxies and backends).
-- `alb` → Configures load balancers.
-- `sg` → Sets up security groups.
-
----
-
-### 4. Provisioners
-
-#### a. Remote-exec
-Used to install required software (e.g., Apache, Nginx) on EC2 instances after deployment:
-```hcl
-provisioner "remote-exec" {
-  inline = [
-    "sudo apt update -y",
-    "sudo apt install nginx -y"
-  ]
-}
-```
-
-#### b. Local-exec
-After provisioning, it writes all instance IPs to a local file named **all-ips.txt**:
-```
-public-ip1 1.1.1.1
-public-ip2 2.2.2.2
-```
-Example:
-```hcl
-provisioner "local-exec" {
-  command = "echo 'public-ip1 ${aws_instance.proxy[0].public_ip}' >> all-ips.txt"
-}
-```
-
-#### c. File Provisioner
-Copies application files from your local machine to private EC2 instances:
-```hcl
-provisioner "file" {
-  source      = "./app/"
-  destination = "/home/ubuntu/app/"
-}
-```
-
----
-
-### 5. Data Sources
-Used to dynamically fetch the latest AMI ID for EC2 instances:
-```hcl
-data "aws_ami" "ubuntu" {
-  most_recent = true
-  owners      = ["099720109477"]
-  filter {
-    name   = "name"
-    values = ["ubuntu/images/hvm-ssd/ubuntu-focal-20.04-amd64-server-*"]
-  }
-}
-```
-
----
-
-## 🧱 Project Structure
-
-```
-terraform-project/
-│
-├── provider.tf
-├── main.tf
-├── variables.tf
-├── outputs.tf
-├── backend.tf
-├── modules/
-│   ├── vpc/
-│   ├── ec2/
-│   ├── alb/
+├── modules
+│   ├── vpc
+│   │   ├── main.tf
+│   │   ├── variables.tf
+│   │   └── outputs.tf
+│   ├── alb
+│   │   ├── main.tf
+│   │   ├── variables.tf
+│   │   └── outputs.tf
+│   ├── ec2
+|   |   ├── main.tf
+│   │   ├── variables.tf
+│   │   └── outputs.tf
 │   ├── sg
+|   |   ├── main.tf
+│   │   ├── variables.tf
+│   │   └── outputs.tf
 │   ├── subnets
+|   |   ├── main.tf
+│   │   ├── variables.tf
+│   │   └── outputs.tf
 ├── scripts
 |   ├── installing_backend.sh
-|   ├── installing_proxy.sh
+│   └── installing_proxy.sh
+├── provider.tf
+├── main.tf
+├── backend.tf
+├──
+├── variables.tf
+├── outputs.tf
+└── README.md
 ```
 
----
+Each module must include `main.tf`, `variables.tf`, and `outputs.tf` as required.
 
-## 🚀 Deployment Steps
+## Key technical notes (how this repo satisfies your requirements)
 
-1. **Initialize Terraform**
-   ```bash
-   terraform init
-   ```
+1. **Workspace**: This project uses a dedicated workspace `dev` (you must create it — see Usage).
+2. **Remote state**: Example S3 backend + DynamoDB lock is included in `envs/dev/backend.tf`.
+3. **Custom modules**: The architecture is implemented via custom modules inside `modules/` — each module contains `main.tf`, `variables.tf`, `outputs.tf` only.
+4. **Provisioners**:
+   - `remote-exec` or `file` provisioner is used to install/configure Nginx (or Apache) on proxy EC2s.
+   - `file` provisioner copies the web app files from your local machine to the private backend EC2 instances.
+   - `local-exec` prints/captures IPs and writes them to `all-ips.txt` in the requested format.
+5. **AMI lookup**: Use the `aws_ami` data source to fetch the latest image (by owner + name/filters).
 
-2. **Select/Create Workspace**
-   ```bash
-   terraform workspace new dev
-   ```
-
-3. **Validate Configuration**
-   ```bash
-   terraform validate
-   ```
-
-4. **Plan Deployment**
-   ```bash
-   terraform plan
-   ```
-
-5. **Apply Changes**
-   ```bash
-   terraform apply -auto-approve
-   ```
-
-6. **Output IPs**
-   Check the `all-ips.txt` file for generated IP addresses.
-
----
-
-## 🧩 Outputs
-- Public Proxy IPs
-- Backend Private IPs
-- Load Balancer DNS names
-
----
-
-
----
+... (content truncated for brevity)
