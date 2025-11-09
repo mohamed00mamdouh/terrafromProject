@@ -107,6 +107,7 @@ data "aws_ami" "ubuntu" {
 ```
 terraform-project/
 │
+├── provider.tf
 ├── main.tf
 ├── variables.tf
 ├── outputs.tf
@@ -115,10 +116,11 @@ terraform-project/
 │   ├── vpc/
 │   ├── ec2/
 │   ├── alb/
-│   ├── sg/
-│
-└── app/
-    └── backend_files/
+│   ├── sg
+│   ├── subnets
+├── scripts
+|   ├── installing_backend.sh
+|   ├── installing_proxy.sh
 ```
 
 ---
