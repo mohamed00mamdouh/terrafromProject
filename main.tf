@@ -7,13 +7,13 @@ data "aws_ami" "amazon_linux" {
   }
 }
 
-# --- VPC Module ---
+
 module "vpc" {
   source   = "./modules/vpc"
   vpc_cidr = var.vpc_cidr
 }
 
-# --- Subnets Module ---
+
 module "subnets" {
   source           = "./modules/subnets"
   vpc_id           = module.vpc.vpc_id
@@ -21,13 +21,13 @@ module "subnets" {
   private_subnets  = var.private_subnets
 }
 
-# --- Security Groups ---
+
 module "sg" {
   source = "./modules/sg"
   vpc_id = module.vpc.vpc_id
 }
 
-# --- EC2 Instances ---
+
 module "ec2" {
   source           = "./modules/ec2"
   ami_id           = data.aws_ami.amazon_linux.id
@@ -38,7 +38,7 @@ module "ec2" {
   sg_backend_id    = module.sg.sg_backend_id
 }
 
-# --- ALBs ---
+
 module "alb" {
   source             = "./modules/alb"
   vpc_id             = module.vpc.vpc_id
@@ -48,7 +48,7 @@ module "alb" {
   backend_target_ids = module.ec2.backend_instance_ids
 }
 
-# --- Write IPs locally ---
+
 resource "null_resource" "write_ips" {
   provisioner "local-exec" {
     command = <<EOT
