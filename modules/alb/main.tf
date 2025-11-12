@@ -1,4 +1,4 @@
-# Public ALB
+
 resource "aws_lb" "public" {
   name               = "public-alb"
   load_balancer_type = "application"
@@ -6,7 +6,7 @@ resource "aws_lb" "public" {
   subnets            = var.public_subnets
 }
 
-# Internal ALB
+
 resource "aws_lb" "internal" {
   name               = "int-alb"
   load_balancer_type = "application"
